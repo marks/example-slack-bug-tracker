@@ -25,11 +25,27 @@ const nonEmptyString = envalid.makeValidator((v) => {
   return v
 })
 
+// Determine if we should validate environment variables for Slack OAuth mode
+//   which supports app installation across multiple workspaces
+const isOAuthMode = process.env.SLACK_OAUTH_MODE === 'true'
+console.log('Running in OAuth mode:', isOAuthMode)
 // Define validation schema for environment variables
 // For information about each variable, see the comments in .env.example
 const EnvVars = envalid.cleanEnv(process.env, {
-  SLACK_BOT_TOKEN: nonEmptyStringStartsWith('xoxb-'),
   SLACK_APP_TOKEN: nonEmptyStringStartsWith('xapp-'),
+
+  // Single workspace (non-OAuth mode only):
+  ...(!isOAuthMode && {
+    SLACK_BOT_TOKEN: nonEmptyStringStartsWith('xoxb-')
+  }),
+
+  // Multi-workspace (OAuth mode only):
+  ...(isOAuthMode && {
+    SLACK_CLIENT_ID: nonEmptyString(),
+    SLACK_CLIENT_SECRET: nonEmptyString(),
+    SLACK_STATE_SECRET: nonEmptyString(),
+    SLACK_SCOPES: nonEmptyString()
+  }),
 
   AIRTABLE_API_KEY: nonEmptyStringStartsWith('key'),
   AIRTABLE_BASE_ID: nonEmptyStringStartsWith('app'),
@@ -40,7 +56,7 @@ const EnvVars = envalid.cleanEnv(process.env, {
 })
 
 // If we got this far, environment variables have been validated
-console.log('✅ Environment variables validated & loaded')
+console.log(`✅ Environment variables validated & loaded (for SLACK_OAUTH_MODE: ${isOAuthMode})`)
 
 module.exports = {
   EnvVars
